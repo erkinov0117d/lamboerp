@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Django
+db.sqlite3
+staticfiles/
+.env
+
+# Node (frontend/dist ATAYLAB git'da qoladi — PythonAnywhere'da build qilinmaydi)
+node_modules/
+
+# IDE
+.idea/
+.vscode/

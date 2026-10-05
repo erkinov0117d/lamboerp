@@ -1,0 +1,27 @@
+@import "tailwindcss";
+
+@theme {
+  --color-gold-300: #ffd75e;
+  --color-gold-400: #ffc824;
+  --color-gold-500: #e6ac00;
+  --color-gold-600: #b88a00;
+  --color-ink-900: #0b0b0b;
+  --color-ink-800: #161615;
+  --color-ink-700: #23231f;
+
+  /* Grafiklar uchun (dataviz reference palette) */
+  --color-series-1: #2a78d6;
+  --color-series-2: #eb6834;
+  --color-chart-grid: #e1e0d9;
+  --color-chart-muted: #898781;
+}
+
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  background: #f5f5f3;
+  color: #0b0b0b;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}

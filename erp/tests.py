@@ -1,0 +1,108 @@
+from io import StringIO
+
+from django.core.management import call_command
+from rest_framework.test import APITestCase
+
+from .models import Branch, Inventory
+
+PASSWORD = 'lambo12345'
+
+
+class ERPApiTests(APITestCase):
+    @classmethod
+    def setUpTestData(cls):
+        call_command('seed_db', stdout=StringIO())
+        cls.tas = Branch.objects.get(name='Lamborghini Tashkent')
+        cls.dxb = Branch.objects.get(name='Lamborghini Dubai')
+
+    def login(self, username):
+        r = self.client.post('/api/auth/token/', {'username': username, 'password': PASSWORD}, format='json')
+        self.assertEqual(r.status_code, 200, r.content)
+        self.client.credentials(HTTP_AUTHORIZATION='Bearer ' + r.json()['access'])
+        return r.json()
+
+    def test_requires_jwt(self):
+        self.assertEqual(self.client.get('/api/v1/inventory/').status_code, 401)
+
+    def test_auth_flow(self):
+        data = self.login('ceo')
+        self.assertEqual(data['user']['role'], 'top_management')
+        self.assertEqual(self.client.get('/api/auth/me/').json()['username'], 'ceo')
+        r = self.client.post('/api/auth/token/refresh/', {'refresh': data['refresh']}, format='json')
+        self.assertEqual(r.status_code, 200)
+
+    def test_top_management_sees_everything(self):
+        self.login('ceo')
+        self.assertEqual(len(self.client.get('/api/v1/branches/').json()), 3)
+        self.assertEqual(len(self.client.get('/api/v1/inventory/').json()), Inventory.objects.count())
+        a = self.client.get('/api/v1/analytics/').json()
+        self.assertEqual(len(a['by_branch']), 3)
+        self.assertGreater(a['sales']['total_revenue'], 0)
+
+    def test_branches_and_analytics_top_only(self):
+        self.login('sales_tas')
+        self.assertEqual(self.client.get('/api/v1/branches/').status_code, 403)
+        self.assertEqual(self.client.get('/api/v1/analytics/').status_code, 403)
+
+    def test_sales_manager_car_order_lifecycle(self):
+        self.login('sales_tas')
+        inv = self.client.get('/api/v1/inventory/').json()
+        self.assertEqual({i['item_type'] for i in inv}, {'car'})
+        self.assertEqual({i['branch'] for i in inv}, {self.tas.id})
+
+        car = next(i for i in inv if i['status'] == 'available')
+        payload = {'order_type': 'car_sale', 'customer_name': 'Test', 'customer_phone': '1',
+                   'items': [{'inventory_item': car['id']}]}
+        r = self.client.post('/api/v1/orders/', payload, format='json')
+        self.assertEqual(r.status_code, 201, r.content)
+        self.assertEqual(r.json()['branch'], self.tas.id)
+        self.assertEqual(r.json()['total_price'], car['price'])
+        order_id = r.json()['id']
+        self.assertEqual(Inventory.objects.get(pk=car['id']).status, 'reserved')
+
+        # Bitta avtomobilni ikki marta sotib bo'lmaydi
+        self.assertEqual(self.client.post('/api/v1/orders/', payload, format='json').status_code, 400)
+
+        self.client.patch(f'/api/v1/orders/{order_id}/', {'status': 'completed'}, format='json')
+        self.assertEqual(Inventory.objects.get(pk=car['id']).status, 'sold')
+
+    def test_sales_manager_restrictions(self):
+        self.login('sales_tas')
+        r = self.client.post('/api/v1/inventory/', {'item_type': 'part', 'name': 'x', 'sku_or_vin': 'X1',
+                                                    'price': '1'}, format='json')
+        self.assertEqual(r.status_code, 400)
+        other = Inventory.objects.filter(branch=self.dxb, item_type='car').first()
+        self.assertEqual(self.client.get(f'/api/v1/inventory/{other.id}/').status_code, 404)
+
+    def test_warehouse_manager(self):
+        self.login('warehouse_tas')
+        low = self.client.get('/api/v1/inventory/?low_stock=1').json()
+        self.assertTrue(all(i['is_low_stock'] for i in low))
+        r = self.client.post('/api/v1/inventory/', {'item_type': 'part', 'name': 'New Part', 'sku_or_vin': 'NEW-1',
+                                                    'price': '99.50', 'stock_quantity': 10}, format='json')
+        self.assertEqual(r.status_code, 201, r.content)
+        self.assertEqual(r.json()['branch'], self.tas.id)
+        r = self.client.post('/api/v1/inventory/', {'branch': self.dxb.id, 'item_type': 'part', 'name': 'x',
+                                                    'sku_or_vin': 'X2', 'price': '1'}, format='json')
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(self.client.get('/api/v1/orders/').status_code, 200)
+        self.assertEqual(self.client.post('/api/v1/orders/', {}, format='json').status_code, 403)
+
+    def test_service_master_parts_consumption(self):
+        self.login('service_tas')
+        part = next(i for i in self.client.get('/api/v1/inventory/').json() if i['stock_quantity'] >= 2)
+        r = self.client.post('/api/v1/orders/', {
+            'order_type': 'service', 'customer_name': 'S', 'customer_phone': '1',
+            'items': [{'inventory_item': part['id'], 'quantity': 2}]}, format='json')
+        self.assertEqual(r.status_code, 201, r.content)
+        self.assertEqual(Inventory.objects.get(pk=part['id']).stock_quantity, part['stock_quantity'] - 2)
+
+        self.client.patch(f"/api/v1/orders/{r.json()['id']}/", {'status': 'cancelled'}, format='json')
+        self.assertEqual(Inventory.objects.get(pk=part['id']).stock_quantity, part['stock_quantity'])
+
+        types = {o['order_type'] for o in self.client.get('/api/v1/orders/').json()}
+        self.assertEqual(types, {'service'})
+        r = self.client.post('/api/v1/orders/', {
+            'order_type': 'car_sale', 'customer_name': 'S', 'customer_phone': '1',
+            'items': [{'inventory_item': part['id']}]}, format='json')
+        self.assertEqual(r.status_code, 400)
