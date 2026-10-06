@@ -8,6 +8,7 @@ import Analytics from './pages/top/Analytics'
 import Branches from './pages/top/Branches'
 import Staff from './pages/top/Staff'
 import Orders from './pages/Orders'
+import Kpi from './pages/Kpi'
 import Inventory from './pages/warehouse/Inventory'
 import SalesKanban from './pages/sales/SalesKanban'
 import CarCatalog from './pages/sales/CarCatalog'
@@ -27,6 +28,7 @@ const PAGES = {
   '/analytics': <Analytics />,
   '/branches': <Branches />,
   '/staff': <Staff />,
+  '/kpi': <Kpi />,
   '/inventory': <Inventory />,
   '/orders': <Orders />,
   '/sales': <SalesKanban />,

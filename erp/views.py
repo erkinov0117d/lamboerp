@@ -3,6 +3,7 @@ from decimal import Decimal
 
 from django.db.models import Count, F, ProtectedError, Q, Sum
 from django.db.models.functions import TruncMonth
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import filters, mixins, viewsets
 from rest_framework.decorators import api_view
@@ -11,7 +12,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView
 
-from . import services
+from . import kpi, services
 from .models import Branch, Inventory, Order, OrderItem, User
 from .permissions import (
     ITEM_TYPE_READ_BY_ROLE, ORDER_TYPE_BY_ROLE,
@@ -19,7 +20,7 @@ from .permissions import (
 )
 from .serializers import (
     BranchSerializer, ERPTokenObtainPairSerializer, InventorySerializer,
-    OrderSerializer, StaffSalarySerializer, UserSerializer,
+    KpiTargetSerializer, OrderSerializer, StaffSalarySerializer, UserSerializer,
 )
 
 LOW_STOCK_THRESHOLD = InventorySerializer.LOW_STOCK_THRESHOLD
@@ -143,6 +144,63 @@ class OrderViewSet(BranchScopedQuerysetMixin, viewsets.ModelViewSet):
 
     def perform_destroy(self, instance):
         services.delete_order(instance)
+
+
+# ---------- KPI ----------
+
+class KpiView(APIView):
+    """
+    GET /api/v1/kpi/?period=month|prev_month|quarter|year&branch=&role=
+    Top Management — barcha xodimlar; qolganlar — faqat o'z KPI'si.
+    """
+
+    def get(self, request):
+        period = request.query_params.get('period', 'quarter')
+        if period not in kpi.PERIODS:
+            raise ValidationError({'period': f"Mumkin bo'lgan qiymatlar: {', '.join(kpi.PERIODS)}"})
+
+        user = request.user
+        if is_top(user):
+            staff = User.objects.filter(role__in=kpi.KPI_ROLES, is_active=True) \
+                .select_related('branch', 'kpi_target').order_by('branch__name', 'role', 'username')
+            if request.query_params.get('branch'):
+                staff = staff.filter(branch_id=request.query_params['branch'])
+            if request.query_params.get('role'):
+                staff = staff.filter(role=request.query_params['role'])
+        else:
+            staff = [user] if user.role in kpi.KPI_ROLES else []
+
+        results = sorted((kpi.compute(u, period) for u in staff),
+                         key=lambda r: r['score'] if r['score'] is not None else -1, reverse=True)
+        scored = [r['score'] for r in results if r['score'] is not None]
+        return Response({
+            'period': period,
+            'period_label': kpi.PERIODS[period],
+            'periods': kpi.PERIODS,
+            'results': results,
+            'totals': {
+                'staff_count': len(results),
+                'bonus': sum((r['bonus'] for r in results), Decimal('0')),
+                'avg_score': (sum(scored) / len(scored)).quantize(Decimal('0.001')) if scored else None,
+                'above_target': sum(1 for s in scored if s >= 1),
+            },
+        })
+
+
+class KpiTargetView(APIView):
+    """PUT/PATCH /api/v1/kpi/<user_id>/target/ — xodim KPI rejasi (faqat Top Management)."""
+    permission_classes = [IsTopManagement]
+
+    def patch(self, request, user_id):
+        user = get_object_or_404(User, pk=user_id, role__in=kpi.KPI_ROLES)
+        target = kpi.get_target(user)
+        serializer = KpiTargetSerializer(target, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(user=user)
+        return Response(kpi.compute(User.objects.select_related('kpi_target', 'branch').get(pk=user.pk),
+                                    request.query_params.get('period', 'quarter')))
+
+    put = patch
 
 
 # ---------- Analytics ----------

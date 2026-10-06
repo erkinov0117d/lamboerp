@@ -4,10 +4,11 @@ from decimal import Decimal
 
 from django.core.management.base import BaseCommand
 from django.db import transaction
+from django.db.models import Count, Sum
 from django.utils import timezone
 
-from erp import services
-from erp.models import Branch, Inventory, Order, OrderItem, User
+from erp import kpi, services
+from erp.models import Branch, Inventory, KpiTarget, Order, OrderItem, User
 
 DEFAULT_PASSWORD = 'lambo12345'
 
@@ -128,6 +129,7 @@ class Command(BaseCommand):
                 ))
 
             self._seed_orders(branch, sales, masters, cars, parts)
+            self._seed_kpi_targets(branch)
 
         self.stdout.write(self.style.SUCCESS("Seed muvaffaqiyatli yakunlandi."))
         self.stdout.write(f"Barcha foydalanuvchilar paroli: {DEFAULT_PASSWORD}")
@@ -182,6 +184,25 @@ class Command(BaseCommand):
                 services.update_order(order, {'status': 'cancelled'})
             days_ago = random.randint(1, 14) if status != 'completed' else random.randint(3, 360)
             self._backdate(order, now - timedelta(days=days_ago))
+
+    def _seed_kpi_targets(self, branch):
+        """Reja xodimning so'nggi 12 oydagi natijasi atrofida — kimdir oshirib, kimdir bajarmay qoladi."""
+        since = timezone.now() - timedelta(days=365)
+        for user in branch.staff.filter(role__in=kpi.KPI_ROLES):
+            if user.role == 'warehouse_manager':
+                KpiTarget.objects.create(user=user, availability_target=90)
+                continue
+            done = Order.objects.filter(assigned_to=user, status='completed', created_at__gte=since) \
+                .aggregate(revenue=Sum('total_price'), count=Count('id'))
+            defaults = kpi.DEFAULT_TARGETS[user.role]
+            factor = Decimal(random.choice(['0.75', '0.85', '0.95', '1.05', '1.2', '1.35']))
+            revenue = (done['revenue'] or Decimal('0')) / 12 * factor or defaults['monthly_revenue_target']
+            orders = Decimal(done['count']) / 12 * factor or defaults['monthly_orders_target']
+            KpiTarget.objects.create(
+                user=user,
+                monthly_revenue_target=(revenue / 100).quantize(Decimal('1')) * 100,  # 100$ gacha yaxlitlash
+                monthly_orders_target=max(orders.quantize(Decimal('0.1')), Decimal('0.1')),
+            )
 
     @staticmethod
     def _backdate(order, when):

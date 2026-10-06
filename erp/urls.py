@@ -19,5 +19,7 @@ auth_urlpatterns = [
 urlpatterns = [
     path('auth/', include(auth_urlpatterns)),
     path('v1/analytics/', views.AnalyticsView.as_view(), name='analytics'),
+    path('v1/kpi/', views.KpiView.as_view(), name='kpi'),
+    path('v1/kpi/<int:user_id>/target/', views.KpiTargetView.as_view(), name='kpi-target'),
     path('v1/', include(router.urls)),
 ]

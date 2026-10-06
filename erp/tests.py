@@ -55,6 +55,28 @@ class ERPApiTests(APITestCase):
         payroll = self.client.get('/api/v1/analytics/').json()['payroll']
         self.assertGreater(float(payroll['monthly']), 12000)
 
+    def test_kpi(self):
+        self.login('ceo')
+        data = self.client.get('/api/v1/kpi/?period=year').json()
+        roles = {r['role'] for r in data['results']}
+        self.assertEqual(roles, {'sales_manager', 'service_master', 'warehouse_manager'})
+        self.assertGreater(data['totals']['staff_count'], 9)
+        self.assertEqual(self.client.get('/api/v1/kpi/?period=bad').status_code, 400)
+
+        sales = next(r for r in data['results'] if r['username'] == 'sales_tas')
+        url = f"/api/v1/kpi/{sales['user_id']}/target/?period=year"
+        # Juda katta reja -> bajarilish 70% dan past -> bonus yo'q
+        r = self.client.patch(url, {'monthly_revenue_target': '99000000', 'monthly_orders_target': '100'}, format='json')
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual(r.json()['bonus'], 0)
+        self.assertEqual(r.json()['rating'], 'low')
+        self.assertEqual(self.client.patch(url, {'bonus_rate': 150}, format='json').status_code, 400)
+
+        self.login('sales_tas')
+        mine = self.client.get('/api/v1/kpi/').json()['results']
+        self.assertEqual([r['username'] for r in mine], ['sales_tas'])
+        self.assertEqual(self.client.patch(url, {'bonus_rate': 50}, format='json').status_code, 403)
+
     def test_branches_and_analytics_top_only(self):
         self.login('sales_tas')
         self.assertEqual(self.client.get('/api/v1/branches/').status_code, 403)

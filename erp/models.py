@@ -82,6 +82,18 @@ class Order(models.Model):
         return f"#{self.pk} {self.get_order_type_display()} - {self.customer_name}"
 
 
+class KpiTarget(models.Model):
+    """Xodimning oylik KPI rejasi. Davr rejasi = oylik reja × oylar soni."""
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='kpi_target')
+    monthly_revenue_target = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    monthly_orders_target = models.DecimalField(max_digits=6, decimal_places=1, default=0)
+    availability_target = models.PositiveSmallIntegerField(default=90)  # omborchi uchun, %
+    bonus_rate = models.PositiveSmallIntegerField(default=20)  # maoshga nisbatan maksimal bonus, %
+
+    def __str__(self):
+        return f"KPI: {self.user}"
+
+
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items')
     inventory_item = models.ForeignKey(Inventory, on_delete=models.PROTECT)

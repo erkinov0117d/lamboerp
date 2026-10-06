@@ -2,7 +2,7 @@ from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 from . import services
-from .models import Branch, Inventory, Order, OrderItem, User
+from .models import Branch, Inventory, KpiTarget, Order, OrderItem, User
 from .permissions import ORDER_TYPE_BY_ROLE, ITEM_TYPE_WRITE_BY_ROLE
 
 
@@ -33,6 +33,22 @@ class UserSerializer(serializers.ModelSerializer):
         if not (viewer.is_top_management or viewer.pk == obj.pk):
             data.pop('salary')
         return data
+
+
+class KpiTargetSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = KpiTarget
+        fields = ['monthly_revenue_target', 'monthly_orders_target', 'availability_target', 'bonus_rate']
+
+    def validate(self, attrs):
+        for field in ('monthly_revenue_target', 'monthly_orders_target'):
+            if attrs.get(field, 0) < 0:
+                raise serializers.ValidationError({field: "Reja manfiy bo'lishi mumkin emas."})
+        if not 0 <= attrs.get('availability_target', 0) <= 100:
+            raise serializers.ValidationError({'availability_target': "0 dan 100 gacha bo'lishi kerak."})
+        if not 0 <= attrs.get('bonus_rate', 0) <= 100:
+            raise serializers.ValidationError({'bonus_rate': "0 dan 100 gacha bo'lishi kerak."})
+        return attrs
 
 
 class StaffSalarySerializer(serializers.ModelSerializer):

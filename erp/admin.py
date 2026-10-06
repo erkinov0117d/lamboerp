@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 
-from .models import Branch, Inventory, Order, OrderItem, User
+from .models import Branch, Inventory, KpiTarget, Order, OrderItem, User
 
 
 @admin.register(Branch)
@@ -23,6 +23,12 @@ class InventoryAdmin(admin.ModelAdmin):
     list_display = ('name', 'item_type', 'sku_or_vin', 'branch', 'price', 'stock_quantity', 'status')
     list_filter = ('item_type', 'status', 'branch')
     search_fields = ('name', 'sku_or_vin')
+
+
+@admin.register(KpiTarget)
+class KpiTargetAdmin(admin.ModelAdmin):
+    list_display = ('user', 'monthly_revenue_target', 'monthly_orders_target', 'availability_target', 'bonus_rate')
+    list_select_related = ('user',)
 
 
 class OrderItemInline(admin.TabularInline):
