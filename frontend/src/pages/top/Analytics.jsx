@@ -100,12 +100,14 @@ export default function Analytics() {
       <ErrorBox message={error} />
       {loading && !data ? <Spinner /> : data && (
         <div className="space-y-6">
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-5">
             <StatTile label="Umumiy daromad" value={money(data.sales.total_revenue)} hint="Bajarilgan buyurtmalar" />
             <StatTile label="Avtomobil sotuvi" value={money(data.sales.car_sales_revenue)} />
             <StatTile label="Servis daromadi" value={money(data.sales.service_revenue)} />
             <StatTile label="Ombor qiymati" value={money(data.inventory.total_value)}
               hint={`${data.inventory.cars_available} ta avto · ${data.inventory.parts_units} dona qism`} />
+            <StatTile label="Oylik ish haqi fondi" value={money(data.payroll.monthly)}
+              hint={`${data.payroll.staff_count} xodim · yiliga ${money(data.payroll.yearly)}`} />
           </div>
 
           <div className="grid gap-6 xl:grid-cols-2">
@@ -137,6 +139,8 @@ export default function Analytics() {
                   <th className="px-5 py-2 text-right">Sotilgan avto</th>
                   <th className="px-5 py-2 text-right">Faol buyurtmalar</th>
                   <th className="px-5 py-2 text-right">Ombor qiymati</th>
+                  <th className="px-5 py-2 text-right">Xodimlar</th>
+                  <th className="px-5 py-2 text-right">Oylik fond</th>
                 </tr>
               </thead>
               <tbody className="tabular divide-y divide-stone-100">
@@ -149,6 +153,8 @@ export default function Analytics() {
                     <td className="px-5 py-2.5 text-right">{b.cars_sold}</td>
                     <td className="px-5 py-2.5 text-right">{b.orders_active}</td>
                     <td className="px-5 py-2.5 text-right">{money(b.inventory_value)}</td>
+                    <td className="px-5 py-2.5 text-right">{b.staff_count}</td>
+                    <td className="px-5 py-2.5 text-right">{money(b.payroll_monthly)}</td>
                   </tr>
                 ))}
               </tbody>

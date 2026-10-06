@@ -21,6 +21,7 @@ class User(AbstractUser):
     )
     role = models.CharField(max_length=30, choices=ROLE_CHOICES, default='sales_manager')
     branch = models.ForeignKey(Branch, on_delete=models.SET_NULL, null=True, blank=True, related_name='staff')
+    salary = models.DecimalField(max_digits=12, decimal_places=2, default=0)  # oylik maosh, USD
 
     @property
     def is_top_management(self):

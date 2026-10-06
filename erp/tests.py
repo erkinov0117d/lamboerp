@@ -39,6 +39,22 @@ class ERPApiTests(APITestCase):
         self.assertEqual(len(a['by_branch']), 3)
         self.assertGreater(a['sales']['total_revenue'], 0)
 
+    def test_salary_visibility_and_update(self):
+        self.login('sales_tas')
+        staff = self.client.get('/api/v1/users/').json()
+        me = next(u for u in staff if u['username'] == 'sales_tas')
+        self.assertIn('salary', me)
+        self.assertTrue(all('salary' not in u for u in staff if u['username'] != 'sales_tas'))
+        self.assertEqual(self.client.patch(f"/api/v1/users/{me['id']}/", {'salary': '99999'}, format='json').status_code, 403)
+
+        self.login('ceo')
+        r = self.client.patch(f"/api/v1/users/{me['id']}/", {'salary': '12000'}, format='json')
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual(r.json()['salary'], '12000.00')
+        self.assertEqual(self.client.patch(f"/api/v1/users/{me['id']}/", {'salary': '-1'}, format='json').status_code, 400)
+        payroll = self.client.get('/api/v1/analytics/').json()['payroll']
+        self.assertGreater(float(payroll['monthly']), 12000)
+
     def test_branches_and_analytics_top_only(self):
         self.login('sales_tas')
         self.assertEqual(self.client.get('/api/v1/branches/').status_code, 403)

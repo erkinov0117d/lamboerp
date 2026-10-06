@@ -39,6 +39,25 @@ PARTS = [
     ('Clutch Hydraulic Pump', Decimal('2100'), 'CHP'),
 ]
 
+CAR_COPIES = 3              # har bir modeldan filialda nechta avtomobil
+CAR_SALES_COMPLETED = 10    # filial bo'yicha 12 oydagi yakunlangan sotuvlar
+SERVICE_COMPLETED = 22      # filial bo'yicha 12 oydagi yakunlangan servislar
+
+# Oylik maosh (USD), har bir xodimda rolga qarab -10%..+20% farq bilan
+SALARY = {
+    'top_management': Decimal('25000'),
+    'sales_manager': Decimal('9000'),
+    'warehouse_manager': Decimal('5000'),
+    'service_master': Decimal('7000'),
+}
+
+# Har bir filialga 3 tadan qo'shimcha xodim (BRANCHES tartibida)
+EXTRA_STAFF = [
+    [('sales_manager', 'Bekzod', 'Rahimov'), ('service_master', 'Otabek', 'Nazarov'), ('warehouse_manager', 'Kamola', 'Yusupova')],
+    [('sales_manager', 'Khalid', 'Al Farsi'), ('service_master', 'Omar', 'Haddad'), ('service_master', 'Yusuf', 'Rahman')],
+    [('sales_manager', 'Luca', 'Ferrari'), ('service_master', 'Paolo', 'Conti'), ('warehouse_manager', 'Chiara', 'Romano')],
+]
+
 CUSTOMERS = [
     ('Aziz Karimov', '+998 90 123 45 67'),
     ('Dilnoza Rahimova', '+998 93 765 43 21'),
@@ -76,24 +95,31 @@ class Command(BaseCommand):
         if not User.objects.filter(username='admin').exists():
             User.objects.create_superuser('admin', 'admin@lamboerp.local', DEFAULT_PASSWORD,
                                           role='top_management', first_name='Stephan', last_name='Winkelmann')
+        # --flush superuser'ni o'chirmaydi — maoshi bo'sh qolmasligi uchun
+        User.objects.filter(username='admin', salary=0).update(salary=SALARY['top_management'])
         self._user('ceo', 'top_management', None, 'Bosh', 'Direktor')
 
-        for name, location, phone, code in BRANCHES:
+        for (name, location, phone, code), extra_staff in zip(BRANCHES, EXTRA_STAFF):
             branch = Branch.objects.create(name=name, location=location, phone=phone)
-            sales = self._user(f'sales_{code}', 'sales_manager', branch, 'Sotuv', code.upper())
+            sales = [self._user(f'sales_{code}', 'sales_manager', branch, 'Sotuv', code.upper())]
             self._user(f'warehouse_{code}', 'warehouse_manager', branch, 'Ombor', code.upper())
-            master = self._user(f'service_{code}', 'service_master', branch, 'Usta', code.upper())
+            masters = [self._user(f'service_{code}', 'service_master', branch, 'Usta', code.upper())]
+            # Qo'shimcha xodimlar
+            for i, (role, first, last) in enumerate(extra_staff, start=2):
+                user = self._user(f'{role.split("_")[0]}{i}_{code}', role, branch, first, last)
+                {'sales_manager': sales, 'service_master': masters}.get(role, []).append(user)
 
             cars = []
-            for i, (car_name, price) in enumerate(CARS):
-                cars.append(Inventory.objects.create(
-                    branch=branch, item_type='car', name=car_name,
-                    sku_or_vin=f'ZHW{code.upper()}{i:02d}{random.randint(100000, 999999)}',
-                    price=price, stock_quantity=1,
-                ))
+            for copy in range(CAR_COPIES):
+                for i, (car_name, price) in enumerate(CARS):
+                    cars.append(Inventory.objects.create(
+                        branch=branch, item_type='car', name=car_name,
+                        sku_or_vin=f'ZHW{code.upper()}{copy}{i:02d}{random.randint(100000, 999999)}',
+                        price=price, stock_quantity=1,
+                    ))
             parts = []
             for part_name, price, sku in PARTS:
-                qty = random.choice([2, 3, 4, 8, 12, 20, 35])
+                qty = random.choice([14, 18, 25, 40, 60])
                 parts.append(Inventory.objects.create(
                     branch=branch, item_type='part', name=part_name,
                     sku_or_vin=f'{sku}-{code.upper()}-{random.randint(1000, 9999)}',
@@ -101,7 +127,7 @@ class Command(BaseCommand):
                     status='available',
                 ))
 
-            self._seed_orders(branch, sales, master, cars, parts)
+            self._seed_orders(branch, sales, masters, cars, parts)
 
         self.stdout.write(self.style.SUCCESS("Seed muvaffaqiyatli yakunlandi."))
         self.stdout.write(f"Barcha foydalanuvchilar paroli: {DEFAULT_PASSWORD}")
@@ -109,45 +135,53 @@ class Command(BaseCommand):
                           "sales_dxb, warehouse_dxb, service_dxb, sales_mil, warehouse_mil, service_mil")
 
     def _user(self, username, role, branch, first_name, last_name):
+        base = SALARY[role]
         user, _ = User.objects.get_or_create(username=username, defaults={
             'role': role, 'branch': branch, 'first_name': first_name, 'last_name': last_name,
             'email': f'{username}@lamboerp.local',
+            'salary': base + random.randint(-5, 10) * (base / 50),  # rolga qarab ±10–20% farq
         })
         user.set_password(DEFAULT_PASSWORD)
         user.save()
         return user
 
-    def _seed_orders(self, branch, sales, master, cars, parts):
+    def _seed_orders(self, branch, sales, masters, cars, parts):
         now = timezone.now()
-        # Avtomobil sotuvlari: Kanban uchun turli holatlar
-        car_statuses = ['completed', 'completed', 'in_progress', 'pending']
+        # Avtomobil sotuvlari 12 oy bo'yicha; oxirgi ikkitasi Kanban uchun ochiq holatda.
+        car_statuses = ['completed'] * CAR_SALES_COMPLETED + ['in_progress', 'in_progress', 'pending', 'pending']
         for car, status in zip(random.sample(cars, len(car_statuses)), car_statuses):
             name, phone = random.choice(CUSTOMERS)
+            # Odatda chegirma bilan sotiladi, ba'zan individual komplektatsiya (+ustama).
+            price = (car.price * Decimal(random.choice(['0.96', '0.98', '1.00', '1.04', '1.12']))).quantize(Decimal('1'))
             order = services.create_order(
                 {'branch': branch, 'order_type': 'car_sale', 'customer_name': name,
-                 'customer_phone': phone, 'assigned_to': sales, 'status': status},
-                [{'inventory_item': car, 'quantity': 1}],
+                 'customer_phone': phone, 'assigned_to': random.choice(sales), 'status': status},
+                [{'inventory_item': car, 'quantity': 1, 'unit_price': price}],
             )
-            self._backdate(order, now - timedelta(days=random.randint(1, 300)))
+            days_ago = random.randint(1, 20) if status != 'completed' else random.randint(5, 360)
+            self._backdate(order, now - timedelta(days=days_ago))
 
         # Servis buyurtmalari
-        for status in ['completed', 'completed', 'completed', 'in_progress', 'pending', 'cancelled']:
+        service_statuses = ['completed'] * SERVICE_COMPLETED + ['in_progress'] * 3 + ['pending'] * 2 + ['cancelled']
+        for status in service_statuses:
             name, phone = random.choice(CUSTOMERS)
-            used = [p for p in random.sample(parts, 2) if p.stock_quantity > 1]
-            for p in used:
+            for p in parts:
                 p.refresh_from_db()
-            items = [{'inventory_item': p, 'quantity': 1} for p in used if p.stock_quantity >= 1]
-            if not items:
-                continue
+            available = [p for p in parts if p.stock_quantity >= 2]
+            if not available:
+                break
+            items = [{'inventory_item': p, 'quantity': random.choice([1, 1, 2])}
+                     for p in random.sample(available, min(len(available), random.choice([1, 2, 3])))]
             order = services.create_order(
                 {'branch': branch, 'order_type': 'service', 'customer_name': name,
-                 'customer_phone': phone, 'assigned_to': master,
+                 'customer_phone': phone, 'assigned_to': random.choice(masters),
                  'status': 'pending' if status == 'cancelled' else status},
                 items,
             )
             if status == 'cancelled':
                 services.update_order(order, {'status': 'cancelled'})
-            self._backdate(order, now - timedelta(days=random.randint(1, 300)))
+            days_ago = random.randint(1, 14) if status != 'completed' else random.randint(3, 360)
+            self._backdate(order, now - timedelta(days=days_ago))
 
     @staticmethod
     def _backdate(order, when):

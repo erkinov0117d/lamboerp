@@ -3,6 +3,7 @@ export const MENU = {
   top_management: [
     { to: '/analytics', label: 'Analitika', icon: '📊' },
     { to: '/branches', label: 'Filiallar', icon: '🏢' },
+    { to: '/staff', label: 'Xodimlar va maoshlar', icon: '👥' },
     { to: '/inventory', label: 'Ombor', icon: '📦' },
     { to: '/orders', label: 'Buyurtmalar', icon: '🧾' },
   ],

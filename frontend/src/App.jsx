@@ -6,6 +6,7 @@ import { canAccess, homePath } from './roles'
 import Login from './pages/Login'
 import Analytics from './pages/top/Analytics'
 import Branches from './pages/top/Branches'
+import Staff from './pages/top/Staff'
 import Orders from './pages/Orders'
 import Inventory from './pages/warehouse/Inventory'
 import SalesKanban from './pages/sales/SalesKanban'
@@ -25,6 +26,7 @@ function Guard({ children }) {
 const PAGES = {
   '/analytics': <Analytics />,
   '/branches': <Branches />,
+  '/staff': <Staff />,
   '/inventory': <Inventory />,
   '/orders': <Orders />,
   '/sales': <SalesKanban />,

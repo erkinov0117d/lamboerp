@@ -12,10 +12,10 @@ class BranchAdmin(admin.ModelAdmin):
 
 @admin.register(User)
 class ERPUserAdmin(UserAdmin):
-    list_display = ('username', 'first_name', 'last_name', 'role', 'branch', 'is_staff')
+    list_display = ('username', 'first_name', 'last_name', 'role', 'branch', 'salary', 'is_staff')
     list_filter = ('role', 'branch', 'is_staff')
-    fieldsets = UserAdmin.fieldsets + (('ERP', {'fields': ('role', 'branch')}),)
-    add_fieldsets = UserAdmin.add_fieldsets + (('ERP', {'fields': ('role', 'branch')}),)
+    fieldsets = UserAdmin.fieldsets + (('ERP', {'fields': ('role', 'branch', 'salary')}),)
+    add_fieldsets = UserAdmin.add_fieldsets + (('ERP', {'fields': ('role', 'branch', 'salary')}),)
 
 
 @admin.register(Inventory)

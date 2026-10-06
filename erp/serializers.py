@@ -22,8 +22,30 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'username', 'first_name', 'last_name', 'email',
-                  'role', 'role_display', 'branch', 'branch_name']
+                  'role', 'role_display', 'branch', 'branch_name', 'salary']
         read_only_fields = fields
+
+    def to_representation(self, obj):
+        data = super().to_representation(obj)
+        # Maoshni faqat Top Management va xodimning o'zi ko'radi.
+        request = self.context.get('request')
+        viewer = request.user if request else obj
+        if not (viewer.is_top_management or viewer.pk == obj.pk):
+            data.pop('salary')
+        return data
+
+
+class StaffSalarySerializer(serializers.ModelSerializer):
+    """Top Management uchun: xodim maoshini o'zgartirish."""
+
+    class Meta:
+        model = User
+        fields = ['salary']
+
+    def validate_salary(self, value):
+        if value < 0:
+            raise serializers.ValidationError("Maosh manfiy bo'lishi mumkin emas.")
+        return value
 
 
 class ERPTokenObtainPairSerializer(TokenObtainPairSerializer):

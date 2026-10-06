@@ -4,7 +4,7 @@ from decimal import Decimal
 from django.db.models import Count, F, ProtectedError, Q, Sum
 from django.db.models.functions import TruncMonth
 from django.utils import timezone
-from rest_framework import filters, viewsets
+from rest_framework import filters, mixins, viewsets
 from rest_framework.decorators import api_view
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
@@ -19,7 +19,7 @@ from .permissions import (
 )
 from .serializers import (
     BranchSerializer, ERPTokenObtainPairSerializer, InventorySerializer,
-    OrderSerializer, UserSerializer,
+    OrderSerializer, StaffSalarySerializer, UserSerializer,
 )
 
 LOW_STOCK_THRESHOLD = InventorySerializer.LOW_STOCK_THRESHOLD
@@ -59,17 +59,29 @@ class BranchViewSet(viewsets.ModelViewSet):
     search_fields = ['name', 'location']
 
 
-class UserViewSet(BranchScopedQuerysetMixin, viewsets.ReadOnlyModelViewSet):
-    """Xodimlar ro'yxati (buyurtmaga mas'ul biriktirish uchun)."""
+class UserViewSet(BranchScopedQuerysetMixin, mixins.UpdateModelMixin, viewsets.ReadOnlyModelViewSet):
+    """Xodimlar ro'yxati. Maoshni (PATCH salary) faqat Top Management o'zgartiradi."""
     serializer_class = UserSerializer
-    permission_classes = [BranchScopedPermission]
     filter_backends = [filters.SearchFilter]
     search_fields = ['username', 'first_name', 'last_name']
+    http_method_names = ['get', 'patch', 'head', 'options']
+
+    def get_permissions(self):
+        if self.action == 'partial_update':
+            return [IsTopManagement()]
+        return [BranchScopedPermission()]
 
     def get_queryset(self):
-        qs = self.scope_by_branch(User.objects.select_related('branch').order_by('username'))
+        qs = self.scope_by_branch(User.objects.select_related('branch').order_by('branch__name', 'role', 'username'))
         role = self.request.query_params.get('role')
         return qs.filter(role=role) if role else qs
+
+    def partial_update(self, request, *args, **kwargs):
+        user = self.get_object()
+        serializer = StaffSalarySerializer(user, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(UserSerializer(user, context={'request': request}).data)
 
 
 class InventoryViewSet(BranchScopedQuerysetMixin, viewsets.ModelViewSet):
@@ -173,7 +185,24 @@ class AnalyticsView(APIView):
                 'inventory_value': inventory.filter(branch=b).aggregate(
                     s=Sum(F('price') * F('stock_quantity'))
                 )['s'] or zero,
+                'staff_count': b.staff.count(),
+                'payroll_monthly': b.staff.aggregate(s=Sum('salary'))['s'] or zero,
             })
+
+        # Ish haqi fondi: filial tanlanmagan bo'lsa, bosh ofis (filialsiz) xodimlari ham kiradi.
+        staff = User.objects.filter(is_active=True)
+        staff = staff.filter(branch_id=branch_id) if branch_id else staff
+        payroll_monthly = staff.aggregate(s=Sum('salary'))['s'] or zero
+        payroll = {
+            'staff_count': staff.count(),
+            'monthly': payroll_monthly,
+            'yearly': payroll_monthly * 12,
+            'by_role': [
+                {'role': r['role'], 'role_display': dict(User.ROLE_CHOICES)[r['role']],
+                 'count': r['count'], 'monthly': r['total'] or zero}
+                for r in staff.values('role').annotate(count=Count('id'), total=Sum('salary')).order_by('-total')
+            ],
+        }
 
         since = timezone.now() - timedelta(days=365)
         monthly = (
@@ -206,6 +235,7 @@ class AnalyticsView(APIView):
                 'orders_by_status': dict(orders.values_list('status').annotate(c=Count('id'))),
                 'orders_by_type': dict(orders.values_list('order_type').annotate(c=Count('id'))),
             },
+            'payroll': payroll,
             'inventory': {
                 'cars_available': inventory.filter(item_type='car', status='available').aggregate(
                     s=Sum('stock_quantity'))['s'] or 0,
