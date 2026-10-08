@@ -2,7 +2,7 @@ from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 from . import services
-from .models import Branch, Inventory, KpiTarget, Order, OrderItem, User
+from .models import Branch, Document, Inventory, KpiTarget, Order, OrderItem, User
 from .permissions import ORDER_TYPE_BY_ROLE, ITEM_TYPE_WRITE_BY_ROLE
 
 
@@ -212,3 +212,49 @@ class OrderSerializer(BranchScopedMixin, serializers.ModelSerializer):
     def update(self, instance, validated_data):
         items = validated_data.pop('items', None)
         return services.update_order(instance, validated_data, items)
+
+
+class DocumentSerializer(BranchScopedMixin, serializers.ModelSerializer):
+    MAX_SIZE = 10 * 1024 * 1024  # 10 MB
+    ALLOWED_EXTENSIONS = ('pdf', 'png', 'jpg', 'jpeg', 'docx', 'xlsx', 'csv', 'txt')
+
+    branch = serializers.PrimaryKeyRelatedField(queryset=Branch.objects.all(), required=False)
+    branch_name = serializers.CharField(source='branch.name', read_only=True)
+    order = serializers.PrimaryKeyRelatedField(queryset=Order.objects.all(), required=False, allow_null=True)
+    kind_display = serializers.CharField(source='get_kind_display', read_only=True)
+    uploaded_by_name = serializers.SerializerMethodField()
+    file = serializers.FileField(write_only=True)
+    filename = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Document
+        fields = ['id', 'branch', 'branch_name', 'order', 'kind', 'kind_display', 'title', 'file', 'filename',
+                  'size', 'content_type', 'uploaded_by', 'uploaded_by_name', 'created_at']
+        read_only_fields = ['size', 'content_type', 'uploaded_by', 'created_at']
+
+    def get_uploaded_by_name(self, obj):
+        return (obj.uploaded_by.get_full_name() or obj.uploaded_by.username) if obj.uploaded_by else None
+
+    def get_filename(self, obj):
+        return obj.file.name.rsplit('/', 1)[-1]
+
+    def validate_file(self, file):
+        ext = file.name.rsplit('.', 1)[-1].lower() if '.' in file.name else ''
+        if ext not in self.ALLOWED_EXTENSIONS:
+            raise serializers.ValidationError(f"Ruxsat etilgan fayl turlari: {', '.join(self.ALLOWED_EXTENSIONS)}")
+        if file.size > self.MAX_SIZE:
+            raise serializers.ValidationError("Fayl hajmi 10 MB dan oshmasligi kerak.")
+        return file
+
+    def validate(self, attrs):
+        attrs = self.apply_branch(attrs)
+        order = attrs.get('order')
+        if order is not None and order.branch_id != attrs['branch'].id:
+            raise serializers.ValidationError({'order': 'Buyurtma boshqa filialga tegishli.'})
+        return attrs
+
+    def create(self, validated_data):
+        file = validated_data['file']
+        validated_data.update(size=file.size, content_type=getattr(file, 'content_type', '') or '',
+                              uploaded_by=self._user())
+        return super().create(validated_data)

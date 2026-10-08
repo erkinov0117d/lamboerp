@@ -3,6 +3,7 @@ import api, { errorMessage } from '../../api/client'
 import useFetch from '../../lib/useFetch'
 import { date, money, ORDER_STATUS } from '../../lib/format'
 import { Badge, Button, Empty, ErrorBox, Field, inputBase, inputCls, Modal, PageHeader, Spinner } from '../../components/ui'
+import InvoiceButton from '../../components/InvoiceButton'
 
 /** Ishlatilgan ehtiyot qismlarni hisobga olish shakli. */
 function PartsEditor({ rows, setRows, parts, reservedByOrder = {} }) {
@@ -128,7 +129,10 @@ function RepairCard({ order, onStatus, onEditParts }) {
       </ul>
       <div className="mt-3 flex items-center justify-between border-t border-stone-100 pt-3">
         <span className="tabular font-bold">{money(order.total_price)}</span>
-        {order.assigned_to_name && <span className="text-xs text-stone-500">👤 {order.assigned_to_name}</span>}
+        <span className="flex items-center gap-2">
+          {order.assigned_to_name && <span className="text-xs text-stone-500">👤 {order.assigned_to_name}</span>}
+          <InvoiceButton order={order} />
+        </span>
       </div>
       {editable && (
         <div className="mt-3 flex flex-wrap gap-1.5">

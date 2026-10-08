@@ -1,27 +1,61 @@
 from datetime import timedelta
 from decimal import Decimal
 
+from django.conf import settings
+from django.core.files.storage import default_storage
+from django.db import connection
 from django.db.models import Count, F, ProtectedError, Q, Sum
 from django.db.models.functions import TruncMonth
+from django.http import FileResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from rest_framework import filters, mixins, viewsets
-from rest_framework.decorators import api_view
-from rest_framework.exceptions import ValidationError
+from rest_framework import filters, mixins, status, viewsets
+from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView
 
 from . import kpi, services
-from .models import Branch, Inventory, Order, OrderItem, User
+from .invoices import create_invoice_document
+from .models import Branch, Document, Inventory, Order, OrderItem, User
 from .permissions import (
     ITEM_TYPE_READ_BY_ROLE, ORDER_TYPE_BY_ROLE,
     BranchScopedPermission, IsTopManagement, is_top,
 )
 from .serializers import (
-    BranchSerializer, ERPTokenObtainPairSerializer, InventorySerializer,
+    BranchSerializer, DocumentSerializer, ERPTokenObtainPairSerializer, InventorySerializer,
     KpiTargetSerializer, OrderSerializer, StaffSalarySerializer, UserSerializer,
 )
+
+
+# ---------- Health check (monitoring uchun) ----------
+
+def storage_backend():
+    return 'Amazon S3' if settings.USE_S3 else 'Lokal disk'
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def health(request):
+    """Ilova, baza va fayl ombori holati. Maxfiy ma'lumot qaytarmaydi."""
+    checks = {}
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute('SELECT 1')
+        checks['database'] = {'ok': True, 'engine': connection.vendor}
+    except Exception as exc:  # noqa: BLE001 — health-check har qanday xatoni ko'rsatishi kerak
+        checks['database'] = {'ok': False, 'error': exc.__class__.__name__}
+    try:
+        default_storage.exists('health-check')
+        checks['storage'] = {'ok': True, 'backend': storage_backend()}
+    except Exception as exc:  # noqa: BLE001
+        checks['storage'] = {'ok': False, 'backend': storage_backend(), 'error': exc.__class__.__name__}
+    ok = all(c['ok'] for c in checks.values())
+    return Response({'status': 'ok' if ok else 'error', 'checks': checks, 'time': timezone.now()},
+                    status=status.HTTP_200_OK if ok else status.HTTP_503_SERVICE_UNAVAILABLE)
 
 LOW_STOCK_THRESHOLD = InventorySerializer.LOW_STOCK_THRESHOLD
 
@@ -144,6 +178,52 @@ class OrderViewSet(BranchScopedQuerysetMixin, viewsets.ModelViewSet):
 
     def perform_destroy(self, instance):
         services.delete_order(instance)
+
+    @action(detail=True, methods=['post'])
+    def invoice(self, request, pk=None):
+        """Buyurtma uchun invoice PDF yaratib, hujjatlar omboriga (S3) saqlaydi."""
+        document = create_invoice_document(self.get_object(), request.user)
+        return Response(DocumentSerializer(document, context={'request': request}).data,
+                        status=status.HTTP_201_CREATED)
+
+
+class DocumentViewSet(BranchScopedQuerysetMixin, mixins.CreateModelMixin, mixins.DestroyModelMixin,
+                      viewsets.ReadOnlyModelViewSet):
+    """ERP hujjatlari: fayllar Amazon S3'da saqlanadi, yuklab olish Django orqali (bucket yopiq)."""
+    serializer_class = DocumentSerializer
+    permission_classes = [BranchScopedPermission]
+    write_roles = ('sales_manager', 'warehouse_manager', 'service_master')
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['title', 'order__customer_name']
+
+    def get_queryset(self):
+        qs = self.scope_by_branch(Document.objects.select_related('branch', 'uploaded_by'))
+        params = self.request.query_params
+        if params.get('kind'):
+            qs = qs.filter(kind=params['kind'])
+        if params.get('order'):
+            qs = qs.filter(order_id=params['order'])
+        return qs
+
+    def list(self, request, *args, **kwargs):
+        response = super().list(request, *args, **kwargs)
+        response['X-Storage-Backend'] = storage_backend()
+        return response
+
+    def perform_destroy(self, instance):
+        user = self.request.user
+        if not is_top(user) and instance.uploaded_by_id != user.id:
+            raise PermissionDenied("Faqat o'zingiz yuklagan hujjatni o'chira olasiz.")
+        instance.file.delete(save=False)
+        instance.delete()
+
+    @action(detail=True, methods=['get'])
+    def download(self, request, pk=None):
+        document = self.get_object()
+        return FileResponse(document.file.open('rb'), as_attachment=True,
+                            filename=document.file.name.rsplit('/', 1)[-1],
+                            content_type=document.content_type or 'application/octet-stream')
 
 
 # ---------- KPI ----------

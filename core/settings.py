@@ -35,7 +35,8 @@ ALLOWED_HOSTS = [h.strip() for h in os.environ.get('DJANGO_ALLOWED_HOSTS', '').s
 if DEBUG:
     ALLOWED_HOSTS += ['localhost', '127.0.0.1', '[::1]']
 
-CSRF_TRUSTED_ORIGINS = [f'https://{h}' for h in ALLOWED_HOSTS if h not in ('localhost', '127.0.0.1', '[::1]')]
+CSRF_TRUSTED_ORIGINS = [f'{scheme}://{h}' for h in ALLOWED_HOSTS if h not in ('localhost', '127.0.0.1', '[::1]')
+                        for scheme in ('https', 'http')]
 
 
 # Application definition
@@ -88,12 +89,29 @@ WSGI_APPLICATION = 'core.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.1/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+# DB_HOST berilsa — PostgreSQL (AWS'da Amazon RDS), aks holda lokal SQLite.
+# Ulanish parametrlari faqat .env faylida saqlanadi, kodda emas.
+if os.environ.get('DB_HOST'):
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'HOST': os.environ['DB_HOST'],
+            'PORT': os.environ.get('DB_PORT', '5432'),
+            'NAME': os.environ.get('DB_NAME', 'lamboerp'),
+            'USER': os.environ.get('DB_USER', 'lamboerp'),
+            'PASSWORD': os.environ.get('DB_PASSWORD', ''),
+            'CONN_MAX_AGE': 60,
+            'CONN_HEALTH_CHECKS': True,
+            'OPTIONS': {'sslmode': os.environ.get('DB_SSLMODE', 'require')},
+        }
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 
 # Password validation
@@ -138,6 +156,55 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 FRONTEND_DIST = BASE_DIR / 'frontend' / 'dist'
 if FRONTEND_DIST.exists():
     WHITENOISE_ROOT = FRONTEND_DIST
+
+
+# Yuklangan fayllar (hujjatlar, invoice'lar).
+# AWS_STORAGE_BUCKET_NAME berilsa — Amazon S3 (yopiq bucket), aks holda lokal media/ papka.
+# AWS'da access key KERAK EMAS: EC2'ga biriktirilgan IAM role orqali boto3 avtomatik ruxsat oladi.
+
+MEDIA_ROOT = BASE_DIR / 'media'
+MEDIA_URL = '/media/'
+
+AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME', '')
+USE_S3 = bool(AWS_STORAGE_BUCKET_NAME)
+
+STORAGES = {
+    'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+    'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+}
+if USE_S3:
+    STORAGES['default'] = {
+        'BACKEND': 'storages.backends.s3.S3Storage',
+        'OPTIONS': {
+            'bucket_name': AWS_STORAGE_BUCKET_NAME,
+            'region_name': os.environ.get('AWS_S3_REGION_NAME', 'eu-central-1'),
+            'location': os.environ.get('AWS_S3_LOCATION', 'lamboerp'),
+            'default_acl': None,        # bucket ACL'siz, Block Public Access yoqilgan
+            'file_overwrite': False,
+            'querystring_auth': True,
+            'object_parameters': {'ServerSideEncryption': 'AES256'},
+        },
+    }
+
+DATA_UPLOAD_MAX_MEMORY_SIZE = 12 * 1024 * 1024
+
+
+# Loglar stdout'ga — EC2'da journald/gunicorn orqali CloudWatch Logs'ga yuboriladi.
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'plain': {'format': '%(asctime)s %(levelname)s %(name)s: %(message)s'},
+    },
+    'handlers': {
+        'console': {'class': 'logging.StreamHandler', 'formatter': 'plain'},
+    },
+    'root': {'handlers': ['console'], 'level': 'INFO'},
+    'loggers': {
+        'django.request': {'handlers': ['console'], 'level': 'WARNING', 'propagate': False},
+    },
+}
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
@@ -184,6 +251,7 @@ if DEBUG:
 
 # Production xavfsizligi (HTTPS majburiyligi PythonAnywhere'da "Force HTTPS" orqali yoqiladi)
 
-if not DEBUG:
+# HTTPS'siz server (masalan, EC2 public IP) uchun .env'da DJANGO_SECURE_COOKIES=False
+if not DEBUG and os.environ.get('DJANGO_SECURE_COOKIES', 'True') == 'True':
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True

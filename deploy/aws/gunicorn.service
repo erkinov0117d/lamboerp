@@ -1,0 +1,21 @@
+[Unit]
+Description=Lamborghini ERP (gunicorn)
+After=network.target
+
+[Service]
+User=ubuntu
+Group=www-data
+WorkingDirectory=/home/ubuntu/lamboerp
+# Sozlamalar /home/ubuntu/lamboerp/.env faylidan o'qiladi (core/settings.py)
+ExecStart=/home/ubuntu/lamboerp/.venv/bin/gunicorn core.wsgi:application \
+    --bind 127.0.0.1:8000 \
+    --workers 3 \
+    --timeout 60 \
+    --access-logfile /var/log/lamboerp/access.log \
+    --error-logfile /var/log/lamboerp/error.log
+LogsDirectory=lamboerp
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

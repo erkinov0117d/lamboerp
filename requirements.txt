@@ -4,3 +4,10 @@ djangorestframework_simplejwt==5.5.1
 django-cors-headers==4.9.0
 whitenoise==6.12.0
 python-dotenv==1.2.4
+# AWS: Amazon S3 (hujjatlar), Amazon RDS PostgreSQL, EC2'da gunicorn
+boto3==1.43.109
+django-storages==1.14.6
+psycopg[binary]==3.3.6
+gunicorn==26.2.0
+# Invoice PDF
+reportlab==5.0.1

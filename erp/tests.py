@@ -1,6 +1,9 @@
+import tempfile
 from io import StringIO
 
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
+from django.test import override_settings
 from rest_framework.test import APITestCase
 
 from .models import Branch, Inventory
@@ -76,6 +79,46 @@ class ERPApiTests(APITestCase):
         mine = self.client.get('/api/v1/kpi/').json()['results']
         self.assertEqual([r['username'] for r in mine], ['sales_tas'])
         self.assertEqual(self.client.patch(url, {'bonus_rate': 50}, format='json').status_code, 403)
+
+    def test_health_is_public(self):
+        r = self.client.get('/api/health/')
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json()['status'], 'ok')
+        self.assertTrue(r.json()['checks']['database']['ok'])
+        self.assertEqual(r.json()['checks']['storage']['backend'], 'Lokal disk')
+
+    def test_documents_and_invoice(self):
+        with tempfile.TemporaryDirectory() as media, override_settings(MEDIA_ROOT=media):
+            self.login('sales_tas')
+            order = self.client.get('/api/v1/orders/').json()[0]
+
+            # Invoice PDF yaratish -> hujjat sifatida saqlanadi
+            r = self.client.post(f"/api/v1/orders/{order['id']}/invoice/")
+            self.assertEqual(r.status_code, 201, r.content)
+            invoice = r.json()
+            self.assertEqual(invoice['kind'], 'invoice')
+            self.assertEqual(invoice['order'], order['id'])
+            pdf = self.client.get(f"/api/v1/documents/{invoice['id']}/download/")
+            self.assertEqual(pdf.status_code, 200)
+            self.assertTrue(b''.join(pdf.streaming_content).startswith(b'%PDF'))
+            pdf.close()
+
+            # Fayl yuklash: filial avtomatik, ruxsat etilmagan tur rad etiladi
+            upload = SimpleUploadedFile('shartnoma.txt', b'Oldi-sotdi shartnomasi', content_type='text/plain')
+            r = self.client.post('/api/v1/documents/', {'file': upload, 'title': 'Shartnoma', 'kind': 'contract'})
+            self.assertEqual(r.status_code, 201, r.content)
+            self.assertEqual(r.json()['branch'], self.tas.id)
+            bad = SimpleUploadedFile('virus.exe', b'MZ', content_type='application/octet-stream')
+            self.assertEqual(self.client.post('/api/v1/documents/', {'file': bad, 'title': 'x'}).status_code, 400)
+
+            # Boshqa filial xodimi ko'rmaydi, omborchi boshqaning hujjatini o'chira olmaydi
+            self.login('sales_dxb')
+            self.assertEqual(self.client.get(f"/api/v1/documents/{invoice['id']}/download/").status_code, 404)
+            self.login('warehouse_tas')
+            self.assertEqual(len(self.client.get('/api/v1/documents/').json()), 2)
+            self.assertEqual(self.client.delete(f"/api/v1/documents/{invoice['id']}/").status_code, 403)
+            self.login('ceo')
+            self.assertEqual(self.client.delete(f"/api/v1/documents/{invoice['id']}/").status_code, 204)
 
     def test_branches_and_analytics_top_only(self):
         self.login('sales_tas')

@@ -3,6 +3,7 @@ import api, { errorMessage } from '../../api/client'
 import useFetch from '../../lib/useFetch'
 import { date, money, ORDER_STATUS } from '../../lib/format'
 import { Button, ErrorBox, PageHeader, Spinner } from '../../components/ui'
+import InvoiceButton from '../../components/InvoiceButton'
 import NewCarOrderModal from './NewCarOrderModal'
 
 const COLUMNS = ['pending', 'in_progress', 'completed', 'cancelled']
@@ -36,7 +37,10 @@ function OrderCard({ order, onMove }) {
         <span className="tabular text-sm font-bold">{money(order.total_price)}</span>
         <span className="text-stone-500">{date(order.created_at)}</span>
       </div>
-      {order.assigned_to_name && <div className="mt-1 text-xs text-stone-500">👤 {order.assigned_to_name}</div>}
+      <div className="mt-1 flex items-center justify-between gap-2 text-xs text-stone-500">
+        <span>{order.assigned_to_name && <>👤 {order.assigned_to_name}</>}</span>
+        <InvoiceButton order={order} />
+      </div>
       {!locked && (
         <div className="mt-2 flex gap-1 border-t border-stone-100 pt-2">
           {prev && <button className="rounded px-2 py-0.5 text-xs text-stone-600 hover:bg-stone-100" onClick={() => onMove(order, prev)}>← {ORDER_STATUS[prev].label}</button>}

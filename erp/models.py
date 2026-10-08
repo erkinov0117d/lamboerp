@@ -82,6 +82,31 @@ class Order(models.Model):
         return f"#{self.pk} {self.get_order_type_display()} - {self.customer_name}"
 
 
+class Document(models.Model):
+    """ERP hujjati (invoice, shartnoma, hisobot...). Fayl Amazon S3'da (yoki lokal diskda) saqlanadi."""
+    KIND_CHOICES = (
+        ('invoice', 'Invoice'),
+        ('contract', 'Shartnoma'),
+        ('report', 'Hisobot'),
+        ('other', 'Boshqa'),
+    )
+    branch = models.ForeignKey(Branch, on_delete=models.CASCADE, related_name='documents')
+    order = models.ForeignKey(Order, on_delete=models.SET_NULL, null=True, blank=True, related_name='documents')
+    kind = models.CharField(max_length=20, choices=KIND_CHOICES, default='other')
+    title = models.CharField(max_length=200)
+    file = models.FileField(upload_to='documents/%Y/%m/')
+    size = models.PositiveBigIntegerField(default=0)
+    content_type = models.CharField(max_length=100, blank=True)
+    uploaded_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='documents')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return self.title
+
+
 class KpiTarget(models.Model):
     """Xodimning oylik KPI rejasi. Davr rejasi = oylik reja × oylar soni."""
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='kpi_target')

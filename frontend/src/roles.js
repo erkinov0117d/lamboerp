@@ -4,6 +4,7 @@ export const MENU = {
     { to: '/analytics', label: 'Analitika', icon: '📊' },
     { to: '/branches', label: 'Filiallar', icon: '🏢' },
     { to: '/staff', label: 'Xodimlar va maoshlar', icon: '👥' },
+    { to: '/documents', label: 'Hujjatlar', icon: '📁' },
     { to: '/kpi', label: 'KPI', icon: '🎯' },
     { to: '/inventory', label: 'Ombor', icon: '📦' },
     { to: '/orders', label: 'Buyurtmalar', icon: '🧾' },
@@ -11,16 +12,19 @@ export const MENU = {
   sales_manager: [
     { to: '/sales', label: 'Sotuv pipeline', icon: '🗂️' },
     { to: '/catalog', label: 'Avtomobillar katalogi', icon: '🏎️' },
+    { to: '/documents', label: 'Hujjatlar', icon: '📁' },
     { to: '/kpi', label: "Mening KPI'im", icon: '🎯' },
   ],
   warehouse_manager: [
     { to: '/inventory', label: 'Ombor qoldiqlari', icon: '📦' },
     { to: '/orders', label: 'Buyurtmalar', icon: '🧾' },
+    { to: '/documents', label: 'Hujjatlar', icon: '📁' },
     { to: '/kpi', label: "Mening KPI'im", icon: '🎯' },
   ],
   service_master: [
     { to: '/service', label: "Ta'mirlash kartochkalari", icon: '🔧' },
     { to: '/inventory', label: 'Ehtiyot qismlar', icon: '📦' },
+    { to: '/documents', label: 'Hujjatlar', icon: '📁' },
     { to: '/kpi', label: "Mening KPI'im", icon: '🎯' },
   ],
 }

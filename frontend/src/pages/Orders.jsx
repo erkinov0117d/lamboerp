@@ -1,5 +1,6 @@
 import { Fragment, useState } from 'react'
 import { useAuth } from '../auth/AuthContext'
+import InvoiceButton from '../components/InvoiceButton'
 import useFetch from '../lib/useFetch'
 import { date, money, ORDER_STATUS } from '../lib/format'
 import { Badge, Card, Empty, ErrorBox, inputBase, PageHeader, Spinner } from '../components/ui'
@@ -72,6 +73,7 @@ export default function Orders() {
                             </li>
                           ))}
                         </ul>
+                        {isTop && <div className="mt-2 text-right"><InvoiceButton order={o} /></div>}
                       </td>
                     </tr>
                   )}

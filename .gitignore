@@ -7,6 +7,7 @@ venv/
 # Django
 db.sqlite3
 staticfiles/
+media/
 .env
 
 # Node (frontend/dist ATAYLAB git'da qoladi — PythonAnywhere'da build qilinmaydi)

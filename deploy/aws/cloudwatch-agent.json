@@ -1,0 +1,47 @@
+{
+  "agent": {
+    "metrics_collection_interval": 60,
+    "run_as_user": "root"
+  },
+  "metrics": {
+    "namespace": "LamboERP",
+    "append_dimensions": {
+      "InstanceId": "${aws:InstanceId}"
+    },
+    "metrics_collected": {
+      "mem": {
+        "measurement": ["mem_used_percent"]
+      },
+      "disk": {
+        "measurement": ["used_percent"],
+        "resources": ["/"]
+      }
+    }
+  },
+  "logs": {
+    "logs_collected": {
+      "files": {
+        "collect_list": [
+          {
+            "file_path": "/var/log/lamboerp/error.log",
+            "log_group_name": "/lamboerp/app",
+            "log_stream_name": "{instance_id}-gunicorn-error",
+            "retention_in_days": 7
+          },
+          {
+            "file_path": "/var/log/lamboerp/access.log",
+            "log_group_name": "/lamboerp/app",
+            "log_stream_name": "{instance_id}-gunicorn-access",
+            "retention_in_days": 7
+          },
+          {
+            "file_path": "/var/log/nginx/lamboerp_error.log",
+            "log_group_name": "/lamboerp/nginx",
+            "log_stream_name": "{instance_id}-nginx-error",
+            "retention_in_days": 7
+          }
+        ]
+      }
+    }
+  }
+}
