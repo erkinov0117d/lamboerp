@@ -31,7 +31,7 @@ Bosh Boshqarma, Sotuv menejeri, Omborchi, Servis ustasi — har biri faqat o'z f
 
 ## 4. Bulut provayderi va ishlatilgan xizmatlar
 
-**Amazon Web Services**, region **eu-central-1 (Frankfurt)**.
+**Amazon Web Services** — **AWS Academy Learner Lab** (o'quv hisobi), region **us-east-1 (N. Virginia)**.
 
 | Xizmat | Vazifasi |
 |---|---|
@@ -47,7 +47,7 @@ Bosh Boshqarma, Sotuv menejeri, Omborchi, Servis ustasi — har biri faqat o'z f
 ```mermaid
 flowchart LR
     U[Foydalanuvchi<br/>brauzer] -->|HTTP :80| SG1
-    subgraph AWS["AWS · eu-central-1"]
+    subgraph AWS["AWS Academy Learner Lab · us-east-1"]
         subgraph VPC["Default VPC"]
             SG1[["Security Group<br/>lamboerp-web-sg<br/>22: My IP · 80: 0.0.0.0/0"]] --> EC2
             subgraph EC2["EC2 t3.micro · Ubuntu 24.04"]
@@ -57,7 +57,7 @@ flowchart LR
         end
         D -->|IAM role · boto3| S3[(Amazon S3<br/>yopiq bucket · SSE-S3)]
         EC2 -->|CloudWatch agent| CW[Amazon CloudWatch<br/>metrikalar · loglar · alarm]
-        IAM[IAM role<br/>lamboerp-ec2-role] -.-> EC2
+        IAM[IAM role<br/>LabRole · LabInstanceProfile] -.-> EC2
     end
 ```
 
@@ -77,7 +77,7 @@ Boshqa UML diagrammalar (use case, klasslar, ER, ketma-ketlik, holatlar): [`docs
 `[SKRINSHOT: terminalda systemctl status lamboerp]`
 
 ### 6.2. Database — Amazon RDS PostgreSQL
-- `db.t4g.micro`, PostgreSQL <versiya>, 20 GB, **Public access: No**.
+- `db.t3.micro`, PostgreSQL <versiya>, 20 GB, **Public access: No**.
 - Django `DB_HOST` va boshqa parametrlarni `.env` dan oladi; ulanish `sslmode=require` bilan shifrlangan.
 - Ilova (EC2) va baza (RDS) mantiqan alohida xizmatlar.
 
@@ -102,10 +102,14 @@ Boshqa UML diagrammalar (use case, klasslar, ER, ketma-ketlik, holatlar): [`docs
 | lamboerp-web-sg | 80 (HTTP) | 0.0.0.0/0 | Web-ilovaga kirish |
 | lamboerp-db-sg | 5432 (PostgreSQL) | lamboerp-web-sg | Faqat ilova serveri bazaga ulanadi |
 
-IAM role `lamboerp-ec2-role`:
-- `LamboErpS3Documents` — faqat bitta bucket'ning `lamboerp/*` prefiksiga `PutObject`, `GetObject`, `DeleteObject`
-  va bucket bo'yicha `ListBucket` (minimal zarur huquqlar).
-- `CloudWatchAgentServerPolicy` — metrika va log yuborish.
+IAM: EC2'ga **`LabInstanceProfile`** (`LabRole`) biriktirilgan — ilova S3 va CloudWatch'ga **access key'siz**,
+vaqtinchalik ruxsat bilan ulanadi. AWS Academy Learner Lab'da yangi IAM role/policy yaratish taqiqlangan, shuning uchun
+tayyor `LabRole` ishlatildi. Haqiqiy AWS hisobida uning o'rniga minimal huquqli policy qo'llanadi
+(`deploy/aws/iam-s3-policy.json`: faqat bitta bucket'ning `lamboerp/*` prefiksiga `PutObject`, `GetObject`, `DeleteObject`
+va `ListBucket`) hamda `CloudWatchAgentServerPolicy`.
+
+S3 bucket policy (`deploy/aws/s3-bucket-policy.json`): shifrlanmagan (HTTP) so'rovlarni rad etadi —
+faqat TLS orqali kirish.
 
 `[SKRINSHOT: Security Group inbound rules (ikkalasi)]`
 `[SKRINSHOT: IAM role — Permissions policies]`

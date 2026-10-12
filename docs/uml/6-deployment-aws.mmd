@@ -1,7 +1,7 @@
 flowchart LR
     USER["«device»<br/>Foydalanuvchi brauzeri<br/>React SPA"]
 
-    subgraph AWS["«cloud» AWS — eu-central-1"]
+    subgraph AWS["«cloud» AWS Academy Learner Lab — us-east-1"]
         direction LR
         subgraph VPC["«network» Default VPC"]
             direction LR
@@ -15,11 +15,11 @@ flowchart LR
                 NGINX --> GUNI --> DJ
             end
             SGD{{"«firewall» lamboerp-db-sg<br/>5432/tcp: faqat web-sg"}}
-            RDS[("«node» Amazon RDS<br/>PostgreSQL · db.t4g.micro<br/>Public access: No")]
+            RDS[("«node» Amazon RDS<br/>PostgreSQL · db.t3.micro<br/>Public access: No")]
         end
         S3[("«node» Amazon S3<br/>lamboerp-docs-*<br/>Block Public Access · SSE-S3")]
         CW["«node» Amazon CloudWatch<br/>Metrics · Logs · Alarm"]
-        IAM["«security» IAM role<br/>lamboerp-ec2-role"]
+        IAM["«security» IAM role<br/>LabRole (LabInstanceProfile)"]
         SNS["SNS → email"]
     end
 

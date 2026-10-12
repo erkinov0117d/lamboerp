@@ -177,7 +177,7 @@ if USE_S3:
         'BACKEND': 'storages.backends.s3.S3Storage',
         'OPTIONS': {
             'bucket_name': AWS_STORAGE_BUCKET_NAME,
-            'region_name': os.environ.get('AWS_S3_REGION_NAME', 'eu-central-1'),
+            'region_name': os.environ.get('AWS_S3_REGION_NAME', 'us-east-1'),
             'location': os.environ.get('AWS_S3_LOCATION', 'lamboerp'),
             'default_acl': None,        # bucket ACL'siz, Block Public Access yoqilgan
             'file_overwrite': False,
