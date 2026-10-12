@@ -1,0 +1,32 @@
+flowchart LR
+    USER["«device»<br/>Foydalanuvchi brauzeri<br/>React SPA"]
+
+    subgraph AWS["«cloud» AWS — eu-central-1"]
+        direction LR
+        subgraph VPC["«network» Default VPC"]
+            direction LR
+            SGW{{"«firewall» lamboerp-web-sg<br/>22/tcp: My IP<br/>80/tcp: 0.0.0.0/0"}}
+            subgraph EC2["«node» EC2 t3.micro · Ubuntu 24.04"]
+                direction TB
+                NGINX["«execution env» nginx :80"]
+                GUNI["«execution env» gunicorn :8000<br/>(faqat localhost)"]
+                DJ["«artifact» Django + DRF<br/>frontend/dist (React)"]
+                CWA["«artifact» CloudWatch agent"]
+                NGINX --> GUNI --> DJ
+            end
+            SGD{{"«firewall» lamboerp-db-sg<br/>5432/tcp: faqat web-sg"}}
+            RDS[("«node» Amazon RDS<br/>PostgreSQL · db.t4g.micro<br/>Public access: No")]
+        end
+        S3[("«node» Amazon S3<br/>lamboerp-docs-*<br/>Block Public Access · SSE-S3")]
+        CW["«node» Amazon CloudWatch<br/>Metrics · Logs · Alarm"]
+        IAM["«security» IAM role<br/>lamboerp-ec2-role"]
+        SNS["SNS → email"]
+    end
+
+    USER -- "HTTP :80" --> SGW --> NGINX
+    DJ -- "TCP 5432 · SSL" --> SGD --> RDS
+    DJ -- "HTTPS · boto3" --> S3
+    CWA -- "mem, disk, loglar" --> CW
+    EC2 -. "CPUUtilization" .-> CW
+    CW -- "CPU > 80%" --> SNS
+    IAM -. "instance profile" .-> EC2

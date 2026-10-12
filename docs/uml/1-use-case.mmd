@@ -1,0 +1,52 @@
+flowchart LR
+    TM["🧍<br/><b>Bosh Boshqarma</b>"]:::actor
+    SM["🧍<br/><b>Sotuv menejeri</b>"]:::actor
+    WM["🧍<br/><b>Omborchi</b>"]:::actor
+    SV["🧍<br/><b>Servis ustasi</b>"]:::actor
+
+    subgraph SYS["Lamborghini ERP System"]
+        direction LR
+        subgraph BOSH["Boshqaruv"]
+            direction TB
+            B1(["Analitikani ko'rish"])
+            B2(["Filiallarni boshqarish"])
+            B3(["Xodim maoshini belgilash"])
+            B4(["KPI rejasini belgilash"])
+        end
+        subgraph SOTUV["Sotuv"]
+            direction TB
+            S1(["Avtomobil katalogi"])
+            S2(["Sotuv buyurtmasi yaratish"])
+            S3(["Kanban: holatni o'zgartirish"])
+        end
+        subgraph OMBOR["Ombor"]
+            direction TB
+            O1(["Qoldiqlarni boshqarish"])
+            O2(["Kirim / chiqim"])
+            O3(["Kam qolgan detallar"])
+        end
+        subgraph SERVIS["Servis"]
+            direction TB
+            V1(["Ta'mirlash kartochkasi"])
+            V2(["Ishlatilgan qismlarni hisobga olish"])
+        end
+        subgraph UMUMIY["Umumiy (barcha rollar)"]
+            direction TB
+            U1(["Tizimga kirish · JWT"])
+            U2(["KPI'ni ko'rish"])
+            U3(["Hujjat yuklash / yuklab olish"])
+            U4(["Invoice PDF yaratish"])
+        end
+    end
+
+    TM --- BOSH
+    SM --- SOTUV
+    WM --- OMBOR
+    SV --- SERVIS
+    TM & SM & WM & SV --- UMUMIY
+
+    S2 -. "«include»" .-> O2
+    V2 -. "«include»" .-> O2
+    U4 -. "«include» S3'ga saqlash" .-> U3
+
+    classDef actor fill:none,stroke:none,font-size:15px

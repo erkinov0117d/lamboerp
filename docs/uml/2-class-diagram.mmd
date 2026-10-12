@@ -1,0 +1,93 @@
+classDiagram
+    direction LR
+
+    class Branch {
+        +int id
+        +str name
+        +str location
+        +str phone
+        +datetime created_at
+    }
+
+    class User {
+        +int id
+        +str username
+        +str first_name
+        +str last_name
+        +Role role
+        +Decimal salary
+        +bool is_top_management()
+    }
+
+    class Inventory {
+        +int id
+        +ItemType item_type
+        +str name
+        +str sku_or_vin «unique»
+        +Decimal price
+        +int stock_quantity
+        +InventoryStatus status
+    }
+
+    class Order {
+        +int id
+        +OrderType order_type
+        +str customer_name
+        +str customer_phone
+        +Decimal total_price
+        +OrderStatus status
+        +datetime created_at
+        +datetime updated_at
+    }
+
+    class OrderItem {
+        +int id
+        +int quantity
+        +Decimal unit_price
+        +Decimal subtotal()
+    }
+
+    class Document {
+        +int id
+        +DocumentKind kind
+        +str title
+        +File file «Amazon S3»
+        +int size
+        +str content_type
+        +datetime created_at
+    }
+
+    class KpiTarget {
+        +Decimal monthly_revenue_target
+        +Decimal monthly_orders_target
+        +int availability_target
+        +int bonus_rate
+    }
+
+    class Role {
+        <<enumeration>>
+        top_management
+        sales_manager
+        warehouse_manager
+        service_master
+    }
+    class OrderStatus {
+        <<enumeration>>
+        pending
+        in_progress
+        completed
+        cancelled
+    }
+
+    Branch "1" o-- "0..*" User : staff
+    Branch "1" *-- "0..*" Inventory : inventories
+    Branch "1" *-- "0..*" Order : orders
+    Branch "1" *-- "0..*" Document : documents
+    Order "1" *-- "1..*" OrderItem : items
+    OrderItem "0..*" --> "1" Inventory : inventory_item
+    User "0..1" <-- "0..*" Order : assigned_to
+    User "0..1" <-- "0..*" Document : uploaded_by
+    Order "0..1" <-- "0..*" Document : order
+    User "1" -- "0..1" KpiTarget : kpi_target
+    User ..> Role
+    Order ..> OrderStatus

@@ -61,7 +61,9 @@ flowchart LR
     end
 ```
 
-`[SKRINSHOT: GitHub'da ko'rsatilgan diagramma yoki draw.io versiyasi]`
+![Deployment diagramma](uml/6-deployment-aws.png)
+
+Boshqa UML diagrammalar (use case, klasslar, ER, ketma-ketlik, holatlar): [`docs/UML.md`](UML.md).
 
 ## 6. Komponentlar tavsifi
 

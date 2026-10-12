@@ -1,0 +1,13 @@
+stateDiagram-v2
+    direction LR
+    state "Buyurtma holati (Order.status)" as ORD {
+        [*] --> pending : yaratildi<br/>(qoldiq band qilinadi)
+        pending --> in_progress : ishni boshlash
+        in_progress --> pending : orqaga
+        in_progress --> completed : yakunlash<br/>(avtomobil → sold)
+        completed --> in_progress : qayta ochish<br/>(sold → reserved)
+        pending --> cancelled : bekor qilish<br/>(qoldiq qaytariladi)
+        in_progress --> cancelled : bekor qilish<br/>(qoldiq qaytariladi)
+        cancelled --> [*]
+        completed --> [*]
+    }

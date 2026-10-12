@@ -1,0 +1,39 @@
+sequenceDiagram
+    autonumber
+    actor SM as Sotuv menejeri
+    participant UI as React (brauzer)
+    participant API as Django REST API<br/>(EC2: nginx → gunicorn)
+    participant SVC as services.py
+    participant DB as Amazon RDS<br/>PostgreSQL
+    participant S3 as Amazon S3
+
+    SM->>UI: Katalogda "Sotish" → mijoz, narx
+    UI->>API: POST /api/v1/orders/ (JWT)
+    API->>API: JWT + rol/filial ruxsatini tekshirish
+    API->>SVC: create_order(data, items)
+    activate SVC
+    SVC->>DB: BEGIN, SELECT ... FOR UPDATE (inventory)
+    alt Qoldiq yetarli
+        SVC->>DB: INSERT order + order_item, UPDATE stock (status = reserved)
+        SVC->>DB: COMMIT
+        SVC-->>API: Order
+        API-->>UI: 201 Created
+        UI-->>SM: Kanban'da "Kutilmoqda" ustunida
+    else Qoldiq yetarli emas / sotilgan
+        SVC->>DB: ROLLBACK
+        API-->>UI: 400 "omborda yetarli qoldiq yo'q"
+    end
+    deactivate SVC
+
+    SM->>UI: Kartochkada "📄 Invoice"
+    UI->>API: POST /api/v1/orders/{id}/invoice/
+    API->>DB: Buyurtma va pozitsiyalarni o'qish
+    API->>API: ReportLab bilan PDF yaratish
+    API->>S3: PutObject lamboerp/documents/... (IAM role, SSE-S3)
+    API->>DB: INSERT document
+    API-->>UI: 201 Document
+    UI->>API: GET /api/v1/documents/{id}/download/
+    API->>S3: GetObject
+    S3-->>API: PDF
+    API-->>UI: PDF fayl (attachment)
+    UI-->>SM: invoice-00001.pdf yuklab olindi

@@ -1,0 +1,76 @@
+erDiagram
+    erp_branch ||--o{ erp_user : "branch_id (SET NULL)"
+    erp_branch ||--o{ erp_inventory : "branch_id (CASCADE)"
+    erp_branch ||--o{ erp_order : "branch_id (CASCADE)"
+    erp_branch ||--o{ erp_document : "branch_id (CASCADE)"
+    erp_order ||--|{ erp_orderitem : "order_id (CASCADE)"
+    erp_inventory ||--o{ erp_orderitem : "inventory_item_id (PROTECT)"
+    erp_user |o--o{ erp_order : "assigned_to_id (SET NULL)"
+    erp_user |o--o{ erp_document : "uploaded_by_id (SET NULL)"
+    erp_order |o--o{ erp_document : "order_id (SET NULL)"
+    erp_user ||--o| erp_kpitarget : "user_id (CASCADE)"
+
+    erp_branch {
+        bigint id PK
+        varchar name
+        varchar location
+        varchar phone
+        timestamptz created_at
+    }
+    erp_user {
+        bigint id PK
+        varchar username UK
+        varchar password "hash"
+        varchar role
+        bigint branch_id FK
+        numeric salary
+    }
+    erp_inventory {
+        bigint id PK
+        bigint branch_id FK
+        varchar item_type "car | part"
+        varchar name
+        varchar sku_or_vin UK
+        numeric price
+        int stock_quantity
+        varchar status
+    }
+    erp_order {
+        bigint id PK
+        bigint branch_id FK
+        varchar order_type "car_sale | service"
+        varchar customer_name
+        varchar customer_phone
+        bigint assigned_to_id FK
+        numeric total_price
+        varchar status
+        timestamptz created_at
+        timestamptz updated_at
+    }
+    erp_orderitem {
+        bigint id PK
+        bigint order_id FK
+        bigint inventory_item_id FK
+        int quantity
+        numeric unit_price
+    }
+    erp_document {
+        bigint id PK
+        bigint branch_id FK
+        bigint order_id FK
+        varchar kind
+        varchar title
+        varchar file "S3 object key"
+        bigint size
+        varchar content_type
+        bigint uploaded_by_id FK
+        timestamptz created_at
+    }
+    erp_kpitarget {
+        bigint id PK
+        bigint user_id FK, UK
+        numeric monthly_revenue_target
+        numeric monthly_orders_target
+        smallint availability_target
+        smallint bonus_rate
+    }
