@@ -25,3 +25,50 @@ body {
 .tabular {
   font-variant-numeric: tabular-nums;
 }
+
+/* ---- Login sahifasi animatsiyalari ---- */
+.login-glow {
+  background:
+    radial-gradient(60% 50% at 20% 60%, rgba(255, 200, 36, 0.18), transparent 70%),
+    radial-gradient(40% 40% at 85% 20%, rgba(255, 200, 36, 0.08), transparent 70%);
+}
+.login-grid {
+  background-image:
+    linear-gradient(rgba(255, 200, 36, 0.8) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 200, 36, 0.8) 1px, transparent 1px);
+  background-size: 48px 48px;
+  transform: perspective(600px) rotateX(55deg) translateY(30%);
+  transform-origin: bottom;
+  mask-image: linear-gradient(to top, black, transparent 70%);
+}
+.login-streak {
+  position: absolute;
+  left: -40%;
+  height: 2px;
+  width: 35%;
+  border-radius: 2px;
+  background: linear-gradient(90deg, transparent, #ffc824, #fff3c4);
+  filter: drop-shadow(0 0 6px rgba(255, 200, 36, 0.8));
+  animation: login-streak linear infinite;
+}
+@keyframes login-streak {
+  to { transform: translateX(400%); }
+}
+.login-rise {
+  animation: login-rise 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@keyframes login-rise {
+  from { opacity: 0; transform: translateY(24px); }
+}
+.login-shine {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+  transform: skewX(-20deg);
+  animation: login-shine 3.2s ease-in-out infinite;
+}
+@keyframes login-shine {
+  0%, 60% { left: -50%; }
+  100% { left: 150%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .login-streak, .login-shine, .login-rise { animation: none; }
+}

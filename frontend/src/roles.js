@@ -1,32 +1,32 @@
 // Rolga qarab dinamik menyu. Har bir rolning birinchi bandi — uning bosh sahifasi.
 export const MENU = {
   top_management: [
-    { to: '/analytics', label: 'Analitika', icon: '📊' },
-    { to: '/branches', label: 'Filiallar', icon: '🏢' },
-    { to: '/staff', label: 'Xodimlar va maoshlar', icon: '👥' },
-    { to: '/documents', label: 'Hujjatlar', icon: '📁' },
-    { to: '/kpi', label: 'KPI', icon: '🎯' },
-    { to: '/inventory', label: 'Ombor', icon: '📦' },
-    { to: '/orders', label: 'Buyurtmalar', icon: '🧾' },
+    { to: '/analytics', label: 'Analitika',  },
+    { to: '/branches', label: 'Filiallar',  },
+    { to: '/staff', label: 'Xodimlar va maoshlar' },
+    { to: '/documents', label: 'Hujjatlar' },
+    { to: '/kpi', label: 'KPI',  },
+    { to: '/inventory', label: 'Ombor' },
+    { to: '/orders', label: 'Buyurtmalar' },
   ],
   sales_manager: [
-    { to: '/sales', label: 'Sotuv pipeline', icon: '🗂️' },
-    { to: '/catalog', label: 'Avtomobillar katalogi', icon: '🏎️' },
-    { to: '/documents', label: 'Hujjatlar', icon: '📁' },
-    { to: '/kpi', label: "Mening KPI'im", icon: '🎯' },
+    { to: '/sales', label: 'Sotuv pipeline'},
+    { to: '/catalog', label: 'Avtomobillar katalogi' },
+    { to: '/documents', label: 'Hujjatlar' },
+    { to: '/kpi', label: "Mening KPI'im" },
   ],
   warehouse_manager: [
-    { to: '/inventory', label: 'Ombor qoldiqlari', icon: '📦' },
-    { to: '/orders', label: 'Buyurtmalar', icon: '🧾' },
-    { to: '/documents', label: 'Hujjatlar', icon: '📁' },
-    { to: '/kpi', label: "Mening KPI'im", icon: '🎯' },
+    { to: '/inventory', label: 'Ombor qoldiqlari' },
+    { to: '/orders', label: 'Buyurtmalar' },
+    { to: '/documents', label: 'Hujjatlar' },
+    { to: '/kpi', label: "Mening KPI'im" },
   ],
   service_master: [
-    { to: '/service', label: "Ta'mirlash kartochkalari", icon: '🔧' },
-    { to: '/inventory', label: 'Ehtiyot qismlar', icon: '📦' },
-    { to: '/documents', label: 'Hujjatlar', icon: '📁' },
-    { to: '/kpi', label: "Mening KPI'im", icon: '🎯' },
-  ],
+    { to: '/service', label: "Ta'mirlash kartochkalari" },
+    { to: '/inventory', label: 'Ehtiyot qismlar' },
+    { to: '/documents', label: 'Hujjatlar' },
+    { to: '/kpi', label: "Mening KPI'im" },
+  ]
 }
 
 export const ROLE_LABELS = {
