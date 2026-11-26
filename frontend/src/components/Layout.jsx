@@ -1,6 +1,7 @@
 import { NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { MENU, ROLE_LABELS } from '../roles'
+import { BrandLogo } from './Brand'
 
 export default function Layout() {
   const { user, logout } = useAuth()
@@ -10,7 +11,7 @@ export default function Layout() {
     <div className="flex min-h-screen">
       <aside className="sticky top-0 flex h-screen w-64 shrink-0 flex-col bg-ink-900 text-stone-300">
         <div className="flex items-center gap-3 px-6 py-6">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gold-400 text-lg font-black text-ink-900">L</div>
+          <BrandLogo className="h-12 w-auto shrink-0 drop-shadow-[0_0_10px_rgba(255,200,36,0.25)]" />
           <div>
             <div className="text-sm font-bold tracking-[0.2em] text-gold-400">LAMBORGHINI</div>
             <div className="text-xs text-stone-500">ERP System</div>

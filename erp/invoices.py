@@ -1,6 +1,5 @@
 """Buyurtma uchun invoice PDF yaratish va uni hujjat sifatida (S3'ga) saqlash."""
 from io import BytesIO
-
 from django.core.files.base import ContentFile
 from django.utils import timezone
 from reportlab.lib import colors
@@ -8,12 +7,23 @@ from reportlab.lib.enums import TA_RIGHT
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
-from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from django.conf import settings
+from reportlab.platypus import Image, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 from .models import Document
 
 GOLD = colors.HexColor('#e6ac00')
 INK = colors.HexColor('#0b0b0b')
+
+
+def _logo(height=18 * mm):
+    """Brend logosi (frontend/dist/brand/logo.png); fayl bo'lmasa — None."""
+    path = settings.BASE_DIR / 'frontend' / 'dist' / 'brand' / 'logo.png'
+    if not path.exists():
+        return None
+    img = Image(str(path))
+    img.drawWidth, img.drawHeight = img.imageWidth * height / img.imageHeight, height
+    return img
 
 
 def _money(value):
@@ -32,9 +42,15 @@ def render_invoice_pdf(order):
     small_right = ParagraphStyle('small_right', parent=small, alignment=TA_RIGHT)
     story = []
 
+    company = [Paragraph('LAMBORGHINI', brand),
+               Paragraph(f'{order.branch.name}<br/>{order.branch.location}<br/>{order.branch.phone}', small)]
+    logo = _logo()
+    if logo:
+        company = Table([[logo, company]], colWidths=[logo.drawWidth + 4 * mm, None])
+        company.setStyle(TableStyle([('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                                     ('LEFTPADDING', (0, 0), (-1, -1), 0)]))
     header = Table(
-        [[[Paragraph('LAMBORGHINI', brand),
-           Paragraph(f'{order.branch.name}<br/>{order.branch.location}<br/>{order.branch.phone}', small)],
+        [[company,
           [Paragraph(f'INVOICE #{order.pk:05d}', title),
            Paragraph(f'Sana: {timezone.localdate():%d.%m.%Y}<br/>'
                      f'Buyurtma sanasi: {timezone.localtime(order.created_at):%d.%m.%Y}', small_right)]]],

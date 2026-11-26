@@ -3,36 +3,7 @@ import { Navigate, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { errorMessage } from '../api/client'
 import { homePath } from '../roles'
-
-// Ixtiyoriy brend fayllari: frontend/public/brand/ papkasiga qo'yilsa, avtomatik ishlatiladi.
-// Bo'lmasa — original emblema va animatsiyali fon ko'rsatiladi.
-const BRAND_LOGO = '/brand/logo.svg'
-const BRAND_VIDEO = '/brand/login-bg.mp4'
-
-/** Loyihaning o'z emblemasi: olti qirrali oltin qalqon ichida "L". */
-function Emblem({ className = '' }) {
-  return (
-    <svg viewBox="0 0 64 72" className={className} aria-hidden="true">
-      <defs>
-        <linearGradient id="emb-gold" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#ffe08a" />
-          <stop offset=".5" stopColor="#ffc824" />
-          <stop offset="1" stopColor="#b88a00" />
-        </linearGradient>
-      </defs>
-      <path d="M32 2 60 18v36L32 70 4 54V18Z" fill="#0b0b0b" stroke="url(#emb-gold)" strokeWidth="3" />
-      <path d="M32 9 54 21.5v29L32 63 10 50.5v-29Z" fill="none" stroke="url(#emb-gold)" strokeWidth="1" opacity=".55" />
-      <path d="M24 20h7v26h13v6H24Z" fill="url(#emb-gold)" />
-    </svg>
-  )
-}
-
-function Logo({ className }) {
-  const [ok, setOk] = useState(true)
-  return ok
-    ? <img src={BRAND_LOGO} alt="" className={className} onError={() => setOk(false)} />
-    : <Emblem className={className} />
-}
+import { BRAND_VIDEO, BrandLogo } from '../components/Brand'
 
 /** Fon: video bo'lsa — video, bo'lmasa (yoki yuklanmasa) — animatsiyali tezlik chiziqlari. */
 function Backdrop() {
@@ -94,7 +65,7 @@ export default function Login() {
       <div className="relative z-10 mx-auto flex min-h-screen max-w-7xl flex-col items-center justify-center gap-12 px-6 py-10 lg:flex-row lg:justify-between lg:px-12">
         {/* Chap: brend */}
         <section className="login-rise max-w-xl text-center lg:text-left">
-          <Logo className="mx-auto mb-6 h-28 w-auto scale-125 drop-shadow-[0_0_30px_rgba(255,200,36,0.35)] sm:h-36 lg:mx-0" />
+          <BrandLogo className="mx-auto mb-6 h-24 w-auto drop-shadow-[0_0_30px_rgba(255,200,36,0.35)] sm:h-28 lg:mx-0" />
           <p className="mb-3 text-xs font-semibold uppercase tracking-[0.4em] text-gold-400 sm:tracking-[0.5em]">Dealer Network · ERP</p>
           <h1 className="text-4xl font-black uppercase leading-none tracking-[0.06em] drop-shadow-lg sm:text-6xl sm:tracking-[0.12em]">
             Lambor<span className="text-gold-400">ghini</span>
